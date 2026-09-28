@@ -168,41 +168,9 @@ public sealed class VideoDomainServiceOutcomeTest
     }
 
     [Fact]
-    public async Task ShareRejection_ShouldBeFailed()
-    {
-        var videoApi = TestDoubles.Api<IVideoApi>(
-            (method, _) =>
-                method.Name switch
-                {
-                    nameof(IVideoApi.UploadVideoHeartbeat) => Task.FromResult(
-                        new BiliApiResponse { Code = 0 }
-                    ),
-                    nameof(IVideoApi.ShareVideo) => Task.FromResult(
-                        new BiliApiResponse { Code = -403, Message = "账号异常" }
-                    ),
-                    _ => throw new InvalidOperationException($"Unexpected API: {method.Name}"),
-                }
-        );
-        var service = CreateService(
-            new DailyTaskOptions { IsShareVideo = true },
-            videoApi: videoApi
-        );
-
-        var result = await service.WatchAndShareVideo(
-            new() { Watch = true, Share = false },
-            TestDoubles.Cookie()
-        );
-
-        Assert.Equal(TaskStepStatus.Failed, result.Status);
-        Assert.Contains("-403", result.Reason);
-        Assert.Contains("账号异常", result.Reason);
-    }
-
-    [Fact]
-    public async Task ShareRejection403_ShouldRetryOnceAndSucceed()
+    public async Task ShareRejection403_ShouldSkipWithoutRetry()
     {
         var shareCalls = 0;
-        var delays = 0;
         var videoApi = TestDoubles.Api<IVideoApi>(
             (method, _) =>
                 method.Name switch
@@ -221,7 +189,7 @@ public sealed class VideoDomainServiceOutcomeTest
         var service = CreateService(
             new DailyTaskOptions { IsShareVideo = true },
             videoApi: videoApi,
-            taskDelay: new RecordingTaskDelay(() => delays++)
+            taskDelay: new RecordingTaskDelay(() => throw new InvalidOperationException("403 不应触发延迟重试"))
         );
 
         var result = await service.WatchAndShareVideo(
@@ -229,94 +197,9 @@ public sealed class VideoDomainServiceOutcomeTest
             TestDoubles.Cookie()
         );
 
-        Assert.Equal(TaskStepStatus.Succeeded, result.Status);
-        Assert.Equal(2, shareCalls);
-        Assert.Equal(1, delays);
-    }
-
-    [Fact]
-    public async Task ShareRejection403_ShouldRebuildRequestBeforeRetry()
-    {
-        var requests = new List<ShareVideoRequest>();
-        var shareCalls = 0;
-        var videoApi = TestDoubles.Api<IVideoApi>(
-            (method, arguments) =>
-                method.Name switch
-                {
-                    nameof(IVideoApi.UploadVideoHeartbeat) => Task.FromResult(
-                        new BiliApiResponse { Code = 0 }
-                    ),
-                    nameof(IVideoApi.ShareVideo) => CaptureShareRequest(
-                        arguments,
-                        requests,
-                        ++shareCalls
-                    ),
-                    _ => throw new InvalidOperationException($"Unexpected API: {method.Name}"),
-                }
-        );
-        var service = CreateService(
-            new DailyTaskOptions { IsShareVideo = true },
-            videoApi: videoApi,
-            taskDelay: new RecordingTaskDelay(() => { })
-        );
-
-        var result = await service.WatchAndShareVideo(
-            new() { Watch = true, Share = false },
-            TestDoubles.Cookie()
-        );
-
-        Assert.Equal(TaskStepStatus.Succeeded, result.Status);
-        Assert.Equal(2, requests.Count);
-        Assert.NotSame(requests[0], requests[1]);
-    }
-
-    private static Task<BiliApiResponse> CaptureShareRequest(
-        object?[] arguments,
-        ICollection<ShareVideoRequest> requests,
-        int shareCall
-    )
-    {
-        requests.Add(Assert.IsType<ShareVideoRequest>(arguments[0]));
-        return Task.FromResult(
-            shareCall == 1
-                ? new BiliApiResponse { Code = -403, Message = "账号异常" }
-                : new BiliApiResponse { Code = 0 }
-        );
-    }
-
-    [Fact]
-    public async Task ShareRejection403_ShouldRetryOnceAndRemainFailed()
-    {
-        var shareCalls = 0;
-        var videoApi = TestDoubles.Api<IVideoApi>(
-            (method, _) =>
-                method.Name switch
-                {
-                    nameof(IVideoApi.UploadVideoHeartbeat) => Task.FromResult(
-                        new BiliApiResponse { Code = 0 }
-                    ),
-                    nameof(IVideoApi.ShareVideo) => Task.FromResult(
-                        ++shareCalls <= 2
-                            ? new BiliApiResponse { Code = -403, Message = "账号异常" }
-                            : new BiliApiResponse { Code = 0 }
-                    ),
-                    _ => throw new InvalidOperationException($"Unexpected API: {method.Name}"),
-                }
-        );
-        var service = CreateService(
-            new DailyTaskOptions { IsShareVideo = true },
-            videoApi: videoApi
-        );
-
-        var result = await service.WatchAndShareVideo(
-            new() { Watch = true, Share = false },
-            TestDoubles.Cookie()
-        );
-
-        Assert.Equal(TaskStepStatus.Failed, result.Status);
-        Assert.Equal(2, shareCalls);
-        Assert.Contains("-403", result.Reason);
-        Assert.Contains("账号异常", result.Reason);
+        Assert.Equal(TaskStepStatus.Skipped, result.Status);
+        Assert.Equal(1, shareCalls);
+        Assert.Contains("风控", result.Reason);
     }
 
     [Fact]
@@ -351,49 +234,6 @@ public sealed class VideoDomainServiceOutcomeTest
         Assert.Equal(TaskStepStatus.Failed, result.Status);
         Assert.Equal(1, shareCalls);
         Assert.Contains("-412", result.Reason);
-    }
-
-    [Fact]
-    public async Task ShareRejection403_ShouldHonorCancellationBeforeRetry()
-    {
-        var shareCalls = 0;
-        var videoApi = TestDoubles.Api<IVideoApi>(
-            (method, _) =>
-                method.Name switch
-                {
-                    nameof(IVideoApi.UploadVideoHeartbeat) => Task.FromResult(
-                        new BiliApiResponse { Code = 0 }
-                    ),
-                    nameof(IVideoApi.ShareVideo) => Task.FromResult(
-                        ++shareCalls == 1
-                            ? new BiliApiResponse { Code = -403, Message = "账号异常" }
-                            : new BiliApiResponse { Code = 0 }
-                    ),
-                    _ => throw new InvalidOperationException($"Unexpected API: {method.Name}"),
-                }
-        );
-        using var cancellation = new CancellationTokenSource();
-        var service = CreateService(
-            new DailyTaskOptions { IsShareVideo = true },
-            videoApi: videoApi,
-            taskDelay: new RecordingTaskDelay(
-                (_, cancellationToken) =>
-                {
-                    cancellation.Cancel();
-                    cancellationToken.ThrowIfCancellationRequested();
-                    return Task.CompletedTask;
-                }
-            )
-        );
-
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            service.WatchAndShareVideo(
-                new() { Watch = true, Share = false },
-                TestDoubles.Cookie(),
-                cancellation.Token
-            )
-        );
-        Assert.Equal(1, shareCalls);
     }
 
     [Fact]

@@ -24,7 +24,6 @@ public class VideoDomainService(
     ITaskDelay taskDelay
 ) : IVideoDomainService, ICancellableVideoDomainService
 {
-    private static readonly TimeSpan ShareRetryDelay = TimeSpan.FromSeconds(1);
     private readonly DailyTaskOptions _dailyTaskOptions = dailyTaskOptions.CurrentValue;
     private readonly Dictionary<string, int> _expDic = Config.Constants.ExpDic;
 
@@ -127,6 +126,23 @@ public class VideoDomainService(
 
         var data = cacheResult.Videos[Random.Shared.Next(cacheResult.Videos.Count)];
         return data;
+    }
+
+    /// <summary>
+    /// 从随机分区的排行榜获取随机视频（不使用共享缓存）。
+    /// 多账号共享同一份全站排行榜缓存会造成选源同池，是服务端聚类特征之一；
+    /// 观看分享场景按账号随机分区拉取，天然打散选源分布。
+    /// </summary>
+    private static readonly int[] ShareRankingRegionIds = [1, 3, 4, 5, 36, 119, 155, 160, 181];
+
+    public async Task<RankingInfo> GetRandomVideoOfRankingByRandomRegion()
+    {
+        int rid = ShareRankingRegionIds[Random.Shared.Next(ShareRankingRegionIds.Length)];
+        var apiResponse = await videoWithoutCookieApi.GetRegionRankingVideosV2(rid);
+        logger.LogDebug("获取分区排行榜成功 rid：{rid}", rid);
+        if (apiResponse.Code != 0 || apiResponse.Data?.List is null || apiResponse.Data.List.Count == 0)
+            throw new InvalidOperationException($"获取分区排行榜失败（rid={rid}）：{apiResponse.Message}");
+        return apiResponse.Data.List[Random.Shared.Next(apiResponse.Data.List.Count)];
     }
 
     public async Task<UpVideoInfo?> GetRandomVideoOfUp(long upId, int total, BiliCookie ck)
@@ -241,6 +257,10 @@ public class VideoDomainService(
                 var shareResult = await ShareVideoForTaskAsync(targetVideo, ck, cancellationToken);
                 if (shareResult.Status == TaskStepStatus.Failed)
                     return shareResult;
+                if (shareResult.Status == TaskStepStatus.Skipped)
+                    return failed
+                        ? TaskStepResult.Fail(failureReason ?? "观看、分享视频失败")
+                        : shareResult;
             }
             else
             {
@@ -329,22 +349,14 @@ public class VideoDomainService(
         );
         if (response?.Code == -403)
         {
+            // 实测（2026-09）：-403 为账号级风控标记，重试、刷新设备档案、更换设备均无效，
+            // 继续请求只会加重标记；直接跳过当日分享，等待标记滚动解除。
             logger.LogWarning(
-                "视频分享返回-403，将在{delaySeconds}秒后重试一次，aid：{aid}",
-                ShareRetryDelay.TotalSeconds,
-                videoInfo.Aid
+                "视频分享被-403拒绝（账号级风控标记），跳过当日分享，aid：{aid}；设备Cookie：{cookieState}",
+                videoInfo.Aid,
+                GetDeviceCookieState(ck)
             );
-            await taskDelay.Delay(ShareRetryDelay, cancellationToken);
-            cancellationToken.ThrowIfCancellationRequested();
-            response = await videoApi.ShareVideo(
-                CreateRequest(),
-                ck.ToString(),
-                GetVideoReferer(videoInfo)
-            );
-            if (response?.Code == -403)
-            {
-                logger.LogWarning("视频分享重试一次后仍被-403拒绝，aid：{aid}", videoInfo.Aid);
-            }
+            return TaskStepResult.Skip("分享被账号风控拒绝，跳过当日分享");
         }
         if (response is null)
         {
@@ -580,8 +592,8 @@ public class VideoDomainService(
         if (video != null)
             return video;
 
-        //然后从排行榜中取
-        var t = await GetRandomVideoOfRanking();
+        //然后从随机分区排行榜中取（避免多账号同池选源）
+        var t = await GetRandomVideoOfRankingByRandomRegion();
         return new VideoInfoDto
         {
             Aid = t.Aid.ToString(),
