@@ -19,8 +19,9 @@ public class Silver2CoinTaskAppService(
     IConfiguration configuration,
     ILiveDomainService liveDomainService,
     ICoinDomainService coinDomainService,
+    ITaskDelay taskDelay,
     CookieStrFactory<BiliCookie> cookieStrFactory
-) : BaseMultiAccountsAppService(logger, cookieStrFactory), ISilver2CoinTaskAppService
+) : BaseMultiAccountsAppService(logger, cookieStrFactory, taskDelay), ISilver2CoinTaskAppService
 {
     [TaskInterceptor("银瓜子兑换硬币任务", TaskLevel.One)]
     protected override async Task DoTaskAccountAsync(

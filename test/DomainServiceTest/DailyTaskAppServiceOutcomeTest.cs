@@ -245,6 +245,7 @@ public sealed class DailyTaskAppServiceOutcomeTest
             new TestOptionsMonitor<DailyTaskOptions>(options),
             fakes.Login,
             configuration,
+            new TestDoubles.ImmediateTaskDelay(),
             new CookieStrFactory<BiliCookie>(configuration)
         );
     }

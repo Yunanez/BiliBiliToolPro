@@ -16,8 +16,9 @@ public class VipBigPointAppService(
     IOptionsMonitor<VipBigPointOptions> vipBigPointOptions,
     IAccountDomainService loginDomainService,
     IVipBigPointDomainService vipBigPointDomainService,
+    ITaskDelay taskDelay,
     CookieStrFactory<BiliCookie> cookieFactory
-) : BaseMultiAccountsAppService(logger, cookieFactory), IVipBigPointAppService
+) : BaseMultiAccountsAppService(logger, cookieFactory, taskDelay), IVipBigPointAppService
 {
     [TaskInterceptor("大会员大积分", TaskLevel.One)]
     protected override async Task DoTaskAccountAsync(

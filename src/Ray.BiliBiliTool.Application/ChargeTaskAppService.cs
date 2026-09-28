@@ -20,8 +20,9 @@ public class ChargeTaskAppService(
     IChargeDomainService chargeDomainService,
     ILoginDomainService loginDomainService,
     IConfiguration configuration,
+    ITaskDelay taskDelay,
     CookieStrFactory<BiliCookie> cookieStrFactory
-) : BaseMultiAccountsAppService(logger, cookieStrFactory), IChargeTaskAppService
+) : BaseMultiAccountsAppService(logger, cookieStrFactory, taskDelay), IChargeTaskAppService
 {
     [TaskInterceptor("免费B币券充电任务", TaskLevel.One)]
     protected override async Task DoTaskAccountAsync(

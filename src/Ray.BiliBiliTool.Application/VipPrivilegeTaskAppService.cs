@@ -20,8 +20,9 @@ public class VipPrivilegeTaskAppService(
     IVipPrivilegeDomainService vipPrivilegeDomainService,
     ILoginDomainService loginDomainService,
     IConfiguration configuration,
+    ITaskDelay taskDelay,
     CookieStrFactory<BiliCookie> cookieStrFactory
-) : BaseMultiAccountsAppService(logger, cookieStrFactory), IVipPrivilegeTaskAppService
+) : BaseMultiAccountsAppService(logger, cookieStrFactory, taskDelay), IVipPrivilegeTaskAppService
 {
     [TaskInterceptor("领取大会员福利任务", TaskLevel.One)]
     protected override async Task DoTaskAccountAsync(

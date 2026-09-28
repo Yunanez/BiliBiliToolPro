@@ -18,8 +18,9 @@ public class MangaTaskAppService(
     IMangaDomainService mangaDomainService,
     ILoginDomainService loginDomainService,
     IConfiguration configuration,
+    ITaskDelay taskDelay,
     CookieStrFactory<BiliCookie> cookieStrFactory
-) : BaseMultiAccountsAppService(logger, cookieStrFactory), IMangaTaskAppService
+) : BaseMultiAccountsAppService(logger, cookieStrFactory, taskDelay), IMangaTaskAppService
 {
     [TaskInterceptor("漫画任务", TaskLevel.One)]
     protected override async Task DoTaskAccountAsync(

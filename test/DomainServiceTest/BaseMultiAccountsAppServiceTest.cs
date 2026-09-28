@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Ray.BiliBiliTool.Agent;
 using Ray.BiliBiliTool.Application;
 using Ray.BiliBiliTool.Application.Contracts;
+using Ray.BiliBiliTool.DomainService.Interfaces;
 using Ray.BiliBiliTool.Infrastructure.Cookie;
 
 namespace DomainServiceTest;
@@ -34,6 +35,32 @@ public class BaseMultiAccountsAppServiceTest
     }
 
     [Fact]
+    public async Task DoTaskAsync_ShouldDelayBetweenAccounts_ButNotAfterLast()
+    {
+        var cookieFactory = new CookieStrFactory<BiliCookie>(
+            new ConfigurationBuilder()
+                .AddInMemoryCollection(
+                    new Dictionary<string, string?>
+                    {
+                        ["BiliBiliCookies:0"] = "DedeUserID=4;SESSDATA=a;bili_jct=a;buvid3=a",
+                        ["BiliBiliCookies:1"] = "DedeUserID=5;SESSDATA=b;bili_jct=b;buvid3=b",
+                        ["BiliBiliCookies:2"] = "DedeUserID=6;SESSDATA=c;bili_jct=c;buvid3=c",
+                    }
+                )
+                .Build()
+        );
+        var delays = 0;
+        var service = new TestMultiAccountsAppService(
+            cookieFactory,
+            new TestDoubles.RecordingTaskDelay(() => delays++)
+        );
+
+        await service.DoTaskAsync();
+
+        Assert.Equal(2, delays);
+    }
+
+    [Fact]
     public async Task DoTaskAsync_ShouldPropagateCancellationWithoutProcessingMoreAccounts()
     {
         var cookieFactory = new CookieStrFactory<BiliCookie>(
@@ -54,8 +81,10 @@ public class BaseMultiAccountsAppServiceTest
         Assert.Equal(["1"], service.ProcessedUserIds);
     }
 
-    private sealed class TestMultiAccountsAppService(CookieStrFactory<BiliCookie> cookieFactory)
-        : BaseMultiAccountsAppService(NullLogger.Instance, cookieFactory)
+    private sealed class TestMultiAccountsAppService(
+        CookieStrFactory<BiliCookie> cookieFactory,
+        ITaskDelay? taskDelay = null
+    ) : BaseMultiAccountsAppService(NullLogger.Instance, cookieFactory, taskDelay ?? new TestDoubles.ImmediateTaskDelay())
     {
         public List<string> ProcessedUserIds { get; } = [];
 
@@ -72,8 +101,9 @@ public class BaseMultiAccountsAppServiceTest
     }
 
     private sealed class CancelingMultiAccountsAppService(
-        CookieStrFactory<BiliCookie> cookieFactory
-    ) : BaseMultiAccountsAppService(NullLogger.Instance, cookieFactory)
+        CookieStrFactory<BiliCookie> cookieFactory,
+        ITaskDelay? taskDelay = null
+    ) : BaseMultiAccountsAppService(NullLogger.Instance, cookieFactory, taskDelay ?? new TestDoubles.ImmediateTaskDelay())
     {
         public List<string> ProcessedUserIds { get; } = [];
 

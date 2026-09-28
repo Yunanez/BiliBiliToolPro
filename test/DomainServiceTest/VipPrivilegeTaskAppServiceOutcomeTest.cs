@@ -77,6 +77,7 @@ public sealed class VipPrivilegeTaskAppServiceOutcomeTest
                 (method, _) => throw new InvalidOperationException($"Unexpected API: {method.Name}")
             ),
             configuration,
+            new TestDoubles.ImmediateTaskDelay(),
             new CookieStrFactory<BiliCookie>(configuration)
         );
     }

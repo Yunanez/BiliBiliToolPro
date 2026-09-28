@@ -13,8 +13,9 @@ public class UnfollowBatchedTaskAppService(
     ILogger<UnfollowBatchedTaskAppService> logger,
     IOptionsMonitor<UnfollowBatchedTaskOptions> unfollowBatchedTaskOptions,
     IAccountDomainService accountDomainService,
+    ITaskDelay taskDelay,
     CookieStrFactory<BiliCookie> cookieStrFactory
-) : BaseMultiAccountsAppService(logger, cookieStrFactory), IUnfollowBatchedTaskAppService
+) : BaseMultiAccountsAppService(logger, cookieStrFactory, taskDelay), IUnfollowBatchedTaskAppService
 {
     [TaskInterceptor("批量取关", TaskLevel.One)]
     protected override async Task DoTaskAccountAsync(

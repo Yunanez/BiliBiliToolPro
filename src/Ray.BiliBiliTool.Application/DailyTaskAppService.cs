@@ -23,8 +23,9 @@ public class DailyTaskAppService(
     IOptionsMonitor<DailyTaskOptions> dailyTaskOptions,
     ILoginDomainService loginDomainService,
     IConfiguration configuration,
+    ITaskDelay taskDelay,
     CookieStrFactory<BiliCookie> cookieStrFactory
-) : BaseMultiAccountsAppService(logger, cookieStrFactory), IDailyTaskAppService
+) : BaseMultiAccountsAppService(logger, cookieStrFactory, taskDelay), IDailyTaskAppService
 {
     private readonly DailyTaskOptions _dailyTaskOptions = dailyTaskOptions.CurrentValue;
 

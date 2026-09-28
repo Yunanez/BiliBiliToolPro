@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Ray.BiliBiliTool.Agent;
 using Ray.BiliBiliTool.Application.Attributes;
@@ -14,8 +14,9 @@ public class LiveFansMedalAppService(
     ILogger<LiveFansMedalAppService> logger,
     IOptionsMonitor<LiveFansMedalTaskOptions> liveFansMedalTaskOptions,
     ILiveDomainService liveDomainService,
+    ITaskDelay taskDelay,
     CookieStrFactory<BiliCookie> cookieStrFactory
-) : BaseMultiAccountsAppService(logger, cookieStrFactory), ILiveFansMedalAppService
+) : BaseMultiAccountsAppService(logger, cookieStrFactory, taskDelay), ILiveFansMedalAppService
 {
     [TaskInterceptor("直播间互动", TaskLevel.One)]
     protected override async Task DoTaskAccountAsync(

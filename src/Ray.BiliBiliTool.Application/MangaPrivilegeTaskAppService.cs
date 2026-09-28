@@ -19,8 +19,9 @@ public class MangaPrivilegeTaskAppService(
     IMangaDomainService mangaDomainService,
     ILoginDomainService loginDomainService,
     IConfiguration configuration,
+    ITaskDelay taskDelay,
     CookieStrFactory<BiliCookie> cookieStrFactory
-) : BaseMultiAccountsAppService(logger, cookieStrFactory), IMangaPrivilegeTaskAppService
+) : BaseMultiAccountsAppService(logger, cookieStrFactory, taskDelay), IMangaPrivilegeTaskAppService
 {
     [TaskInterceptor("每月领取大会员漫画权益任务", TaskLevel.One)]
     protected override async Task DoTaskAccountAsync(

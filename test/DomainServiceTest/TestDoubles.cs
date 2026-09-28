@@ -15,6 +15,25 @@ internal static class TestDoubles
         return proxy;
     }
 
+    public sealed class ImmediateTaskDelay : Ray.BiliBiliTool.DomainService.Interfaces.ITaskDelay
+    {
+        public Task Delay(TimeSpan delay, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+    }
+
+    public sealed class RecordingTaskDelay : Ray.BiliBiliTool.DomainService.Interfaces.ITaskDelay
+    {
+        private readonly Action _onDelay;
+
+        public RecordingTaskDelay(Action onDelay) => _onDelay = onDelay;
+
+        public Task Delay(TimeSpan delay, CancellationToken cancellationToken)
+        {
+            _onDelay();
+            return Task.CompletedTask;
+        }
+    }
+
     public static BiliCookie Cookie() =>
         new(
             new Dictionary<string, string>

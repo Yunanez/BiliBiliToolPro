@@ -250,7 +250,7 @@ public sealed class UpFriendlyWatchVideoTest
             );
         }
 
-        public Task<BiliApiResponse<Ranking>> GetRegionRankingVideosV2() =>
+        public Task<BiliApiResponse<Ranking>> GetRegionRankingVideosV2(int rid = 0) =>
             throw new NotImplementedException();
 #pragma warning disable CS0612
         public Task<BiliApiResponse<List<RankingInfo>>> GetRegionRankingVideos(int rid, int day) =>

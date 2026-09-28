@@ -58,6 +58,7 @@ public sealed class ChargeTaskAppServiceOutcomeTest
             new FakeChargeDomainService(result),
             new FakeLoginDomainService(),
             configuration,
+            new TestDoubles.ImmediateTaskDelay(),
             new CookieStrFactory<BiliCookie>(configuration)
         );
     }

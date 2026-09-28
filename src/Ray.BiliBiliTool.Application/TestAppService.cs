@@ -10,8 +10,9 @@ namespace Ray.BiliBiliTool.Application;
 public class TestAppService(
     ILogger<TestAppService> logger,
     IAccountDomainService accountDomainService,
+    ITaskDelay taskDelay,
     CookieStrFactory<BiliCookie> cookieStrFactory
-) : BaseMultiAccountsAppService(logger, cookieStrFactory), ITestAppService
+) : BaseMultiAccountsAppService(logger, cookieStrFactory, taskDelay), ITestAppService
 {
     [TaskInterceptor("测试Cookie")]
     protected override async Task DoTaskAccountAsync(

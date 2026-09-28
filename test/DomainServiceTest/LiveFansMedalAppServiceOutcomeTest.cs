@@ -65,6 +65,7 @@ public sealed class LiveFansMedalAppServiceOutcomeTest
                 new LiveFansMedalTaskOptions { IsEnable = true }
             ),
             live,
+            new TestDoubles.ImmediateTaskDelay(),
             new CookieStrFactory<BiliCookie>(configuration)
         );
     }

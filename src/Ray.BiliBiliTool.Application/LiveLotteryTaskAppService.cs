@@ -14,8 +14,9 @@ public class LiveLotteryTaskAppService(
     IOptionsMonitor<LiveLotteryTaskOptions> liveLotteryTaskOptions,
     ILogger<LiveLotteryTaskAppService> logger,
     IAccountDomainService accountDomainService,
+    ITaskDelay taskDelay,
     CookieStrFactory<BiliCookie> cookieStrFactory
-) : BaseMultiAccountsAppService(logger, cookieStrFactory), ILiveLotteryTaskAppService
+) : BaseMultiAccountsAppService(logger, cookieStrFactory, taskDelay), ILiveLotteryTaskAppService
 {
     private readonly LiveLotteryTaskOptions _liveLotteryTaskOptions =
         liveLotteryTaskOptions.CurrentValue;
