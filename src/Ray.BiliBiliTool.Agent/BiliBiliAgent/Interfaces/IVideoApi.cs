@@ -1,4 +1,4 @@
-﻿using Ray.BiliBiliTool.Agent.BiliBiliAgent.Dtos;
+using Ray.BiliBiliTool.Agent.BiliBiliAgent.Dtos;
 using Ray.BiliBiliTool.Agent.BiliBiliAgent.Dtos.Video;
 using WebApiClientCore.Attributes;
 
@@ -131,6 +131,6 @@ public interface IVideoWithoutCookieApi : IVideoApi
     [Header("Referer", "https://www.bilibili.com/")]
     [Header("Origin", "https://www.bilibili.com")]
     [Header("dnt", "1")]
-    [HttpGet("/x/web-interface/ranking/v2?rid=0&type=all")]
-    Task<BiliApiResponse<Ranking>> GetRegionRankingVideosV2();
+    [HttpGet("/x/web-interface/ranking/v2?rid={rid}&type=all")]
+    Task<BiliApiResponse<Ranking>> GetRegionRankingVideosV2(int rid = 0);
 }
