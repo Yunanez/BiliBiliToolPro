@@ -57,12 +57,34 @@ public class DonateCoinDomainService(
         ResetRuntimeSelectionState();
         await LoadPersistentSelectionStateAsync(ck.UserId);
 
-        int needCoins = await GetNeedDonateCoinNum(ck);
+        // 前置查询（今日已投数、硬币余额）失败通常是接口抖动或风控连带，
+        // 不应中断账号其余任务，降级为跳过本次投币。
+        int needCoins;
+        try
+        {
+            needCoins = await GetNeedDonateCoinNum(ck);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning("获取今日已投币数失败，跳过本次投币：{message}", ex.Message);
+            return TaskStepResult.Skip("投币前置查询失败，跳过投币");
+        }
+
         int protectedCoins = _dailyTaskOptions.NumberOfProtectedCoins;
         if (needCoins <= 0)
             return TaskStepResult.Skip("没有需要投币的视频");
 
-        decimal coinBalance = await coinDomainService.GetCoinBalance(ck);
+        decimal coinBalance;
+        try
+        {
+            coinBalance = await coinDomainService.GetCoinBalance(ck);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning("获取硬币余额失败，跳过本次投币：{message}", ex.Message);
+            return TaskStepResult.Skip("获取硬币余额失败，跳过投币");
+        }
+
         logger.LogInformation("【投币前余额】 : {coinBalance}", coinBalance);
         _ = int.TryParse(
             decimal.Truncate(coinBalance - protectedCoins).ToString(),

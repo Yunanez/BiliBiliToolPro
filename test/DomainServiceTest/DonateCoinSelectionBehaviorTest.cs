@@ -1125,6 +1125,76 @@ public sealed class DonateCoinSelectionBehaviorTest
         }
     }
 
+    [Fact]
+    public async Task AddCoinsForVideos_ShouldSkip_WhenCoinBalanceQueryFails()
+    {
+        var tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDirectory);
+        try
+        {
+            var stateStore = new DonateCoinSelectionStateStore(
+                NullLogger<DonateCoinSelectionStateStore>.Instance,
+                Path.Combine(tempDirectory, "state.json")
+            );
+            var service = CreateDomainService(
+                NullLogger<DonateCoinDomainService>.Instance,
+                stateStore,
+                new FakeVideoDomainService(),
+                new FakeRelationApi(),
+                new FakeVideoApi(),
+                "1",
+                1,
+                coinDomainService: new ThrowingCoinDomainService(
+                    failBalance: true,
+                    failDonated: false
+                )
+            );
+
+            var result = await service.AddCoinsForVideos(CreateCookie("10001"));
+
+            Assert.Equal(TaskStepStatus.Skipped, result.Status);
+        }
+        finally
+        {
+            Directory.Delete(tempDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task AddCoinsForVideos_ShouldSkip_WhenDonatedCoinsQueryFails()
+    {
+        var tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDirectory);
+        try
+        {
+            var stateStore = new DonateCoinSelectionStateStore(
+                NullLogger<DonateCoinSelectionStateStore>.Instance,
+                Path.Combine(tempDirectory, "state.json")
+            );
+            var service = CreateDomainService(
+                NullLogger<DonateCoinDomainService>.Instance,
+                stateStore,
+                new FakeVideoDomainService(),
+                new FakeRelationApi(),
+                new FakeVideoApi(),
+                "1",
+                1,
+                coinDomainService: new ThrowingCoinDomainService(
+                    failBalance: false,
+                    failDonated: true
+                )
+            );
+
+            var result = await service.AddCoinsForVideos(CreateCookie("10001"));
+
+            Assert.Equal(TaskStepStatus.Skipped, result.Status);
+        }
+        finally
+        {
+            Directory.Delete(tempDirectory, recursive: true);
+        }
+    }
+
     private static DonateCoinDomainService CreateDomainService(
         ILogger<DonateCoinDomainService> logger,
         DonateCoinSelectionStateStore stateStore,
@@ -1133,7 +1203,8 @@ public sealed class DonateCoinSelectionBehaviorTest
         FakeVideoApi videoApi,
         string supportUpIds,
         int numberOfCoins,
-        bool isUpFriendlyMode = false
+        bool isUpFriendlyMode = false,
+        ICoinDomainService? coinDomainService = null
     )
     {
         var options = new TestOptionsMonitor<DailyTaskOptions>(
@@ -1151,7 +1222,7 @@ public sealed class DonateCoinSelectionBehaviorTest
             logger,
             options,
             new FakeAccountApi(),
-            new FakeCoinDomainService(),
+            coinDomainService ?? new FakeCoinDomainService(),
             videoDomainService,
             new FakeFavoriteDomainService(),
             relationApi,
@@ -1208,6 +1279,20 @@ public sealed class DonateCoinSelectionBehaviorTest
             AddedAids.Add(aid);
             return Task.FromResult(AddResult);
         }
+    }
+
+    private sealed class ThrowingCoinDomainService(bool failBalance, bool failDonated)
+        : ICoinDomainService
+    {
+        public Task<decimal> GetCoinBalance(BiliCookie ck) =>
+            failBalance
+                ? Task.FromException<decimal>(new InvalidOperationException("获取硬币余额失败："))
+                : Task.FromResult(10m);
+
+        public Task<int> GetDonatedCoins(BiliCookie ck) =>
+            failDonated
+                ? Task.FromException<int>(new InvalidOperationException("获取投币经验失败："))
+                : Task.FromResult(0);
     }
 
     private sealed class FakeCoinDomainService : ICoinDomainService

@@ -1,4 +1,4 @@
-﻿using Ray.BiliBiliTool.Agent;
+using Ray.BiliBiliTool.Agent;
 using Ray.BiliBiliTool.Agent.BiliBiliAgent.Interfaces;
 using Ray.BiliBiliTool.DomainService.Interfaces;
 
@@ -17,8 +17,8 @@ public class CoinDomainService(IAccountApi accountApi, IDailyTaskApi dailyTaskAp
     public async Task<decimal> GetCoinBalance(BiliCookie ck)
     {
         var response = await accountApi.GetCoinBalanceAsync(ck.ToString());
-        if (response.Code != 0 || response.Data is null)
-            throw new InvalidOperationException($"获取硬币余额失败：{response.Message}");
+        if (response is null || response.Code != 0 || response.Data is null)
+            throw new InvalidOperationException($"获取硬币余额失败：{response?.Message}");
         return response.Data.Money ?? 0;
     }
 
@@ -39,8 +39,8 @@ public class CoinDomainService(IAccountApi accountApi, IDailyTaskApi dailyTaskAp
     private async Task<int> GetDonateCoinExp(BiliCookie ck)
     {
         var response = await dailyTaskApi.GetDonateCoinExpAsync(ck.ToString());
-        if (response.Code != 0 || response.Data is null)
-            throw new InvalidOperationException($"获取投币经验失败：{response.Message}");
+        if (response is null || response.Code != 0 || response.Data is null)
+            throw new InvalidOperationException($"获取投币经验失败：{response?.Message}");
         return response.Data.Value;
     }
     #endregion
